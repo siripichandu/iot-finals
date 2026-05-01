@@ -1,0 +1,33 @@
+mqtt:
+  broker: "localhost"
+  port: 1883
+  topic: "home/airquality"
+
+influxdb:
+  url: "http://localhost:8086"
+  token: "yIFyTTRLgdCCef9SpnUfxlgqAhwtxWr6WV8sru7BYk7ms1CaHGSvTLqutEXO92q7v2zu1PNBXv7q1MPPmjgKpA==
+"          # filled in after InfluxDB setup
+  org: "iot_project"
+  bucket: "airquality"
+
+pipeline:
+  save_interval_seconds: 10
+  bad_data_log: "logs/bad_data.log"
+
+thresholds:
+  temperature:
+    warn: 28.0
+    alert: 35.0
+  humidity:
+    low_warn: 25.0
+    high_warn: 70.0
+    alert: 85.0
+  airquality:
+    warn: 500
+    alert: 1500
+
+anomaly:
+  z_score_threshold: 2.5
+  window_size: 30        # last N readings used for rolling stats
+
+stale_data_seconds: 60
