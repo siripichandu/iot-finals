@@ -7,3 +7,4 @@ data/*.csv
 data/*.xlsx
 data/*.db
 *.DS_Store
+.Rhistory
