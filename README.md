@@ -1,4 +1,4 @@
-# 🏠 Indoor Air Quality Monitor
+#  Indoor Air Quality Monitor
 ### IoT Capstone Project — Spring 2026
 
 > **Problem:** People spend 90% of their time indoors but have zero visibility into air quality. CO2 builds up in bedrooms during sleep, cooking spikes pollutants in kitchens, and there is no system to tell you when to ventilate. This pipeline makes the invisible visible and actionable.
@@ -240,65 +240,5 @@ The pipeline handles these scenarios — all documented in `src/validator.py`:
 - **10-second intervals** within active windows
 - **Sensor gaps** (offline 2–5 hours between sessions) — realistic WiFi dropout behavior
 
----
+--
 
-## Scaling to Enterprise
-
-The current design runs on a laptop with local services. To scale to enterprise:
-
-| Component | Current | Enterprise upgrade |
-|---|---|---|
-| MQTT broker | Mosquitto (local) | AWS IoT Core / HiveMQ cluster |
-| Storage | InfluxDB (local) | InfluxDB Cloud / TimescaleDB on RDS |
-| Processing | Python script | Apache Kafka + Flink stream processing |
-| Dashboard | Streamlit (local) | Grafana with InfluxDB datasource |
-| Devices | 2 ESP32s | Fleet management via AWS IoT Greengrass |
-| Deployment | Manual | Dockerized, deployed via Kubernetes |
-
-Key bottleneck at scale: the subscriber.py is single-threaded. At 1000+ devices, you'd need a message queue (Kafka) and parallel consumers.
-
----
-
-## GitHub Commit History (Incremental Development)
-
-```
-git commit -m "init: project structure and requirements"
-git commit -m "feat: ESP32 DHT22 basic sensor reading"
-git commit -m "feat: add WiFi + MQTT publishing to ESP32"
-git commit -m "feat: add MQ-135 and PIR sensors to bedroom node"
-git commit -m "feat: add kitchen ESP32 node with DHT22 + PIR"
-git commit -m "feat: Mosquitto broker setup and config"
-git commit -m "feat: Python MQTT subscriber with JSON parsing"
-git commit -m "feat: data validation module (null, range, type checks)"
-git commit -m "feat: enrichment layer (time_of_day, aqi_label tags)"
-git commit -m "feat: InfluxDB writer with proper schema (tags + fields)"
-git commit -m "feat: Streamlit dashboard v1 - KPI cards and live data"
-git commit -m "feat: add temperature + humidity trend chart"
-git commit -m "feat: add air quality chart with threshold bands"
-git commit -m "feat: add room comparison and motion charts"
-git commit -m "feat: anomaly detection with Z-score in dashboard"
-git commit -m "feat: Isolation Forest ML model with decision engine"
-git commit -m "feat: ML visualization - 4-panel anomaly plot"
-git commit -m "refactor: modular structure, config.yaml, logging"
-git commit -m "docs: README with architecture diagram and setup steps"
-git commit -m "fix: smooth dashboard refresh with st.rerun()"
-git commit -m "fix: GPIO35 for MQ-135 (GPIO34 unreliable on this board)"
-```
-
----
-
-## Challenges, Learnings, Tradeoffs
-
-**Challenges:**
-- MQ-135 needs 2–3 min warmup — handled with range validation
-- ESP32 GPIO34 proved unreliable for analog reads — switched to GPIO35
-- Mosquitto required `allow_anonymous true` for local ESP32 connections
-- MQTT client ID collision when two ESP32s connect — solved with unique client IDs
-
-**Learnings:**
-- IoT is not just code — hardware debugging (bad cables, wrong pins) takes as much time as software
-- Time-series databases fundamentally differ from relational DBs — tags vs fields distinction matters for query performance
-- Anomaly detection without labelled data is genuinely hard — Isolation Forest is a practical unsupervised solution
-
-**IoT understanding shift:**
-Before: IoT = sensors + cloud. After: IoT is an entire engineering discipline — device constraints, protocol tradeoffs, stream processing, time-series storage, edge intelligence.
