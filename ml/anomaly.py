@@ -263,12 +263,18 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Load data from file or InfluxDB
+    # Load data from file or InfluxDB
     if args.csv:
         log.info(f"Loading from file: {args.csv}")
         df = load_from_file(args.csv)
     else:
-        log.info(f"Fetching last {args.hours}h from InfluxDB")
-        df = fetch_data(hours=args.hours)
+        default_file = os.path.expanduser("~/iot_pipeline/data/sensor_data_full.xlsx")
+        if os.path.exists(default_file):
+            log.info(f"Loading from default file: {default_file}")
+            df = load_from_file(default_file)
+        else:
+            log.info(f"Fetching last {args.hours}h from InfluxDB")
+            df = fetch_data(hours=args.hours)
 
     if df.empty:
         log.error("No data found.")

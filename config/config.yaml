@@ -1,14 +1,14 @@
 mqtt:
   broker: "localhost"
   port: 1883
-  topic: "home/airquality"
+  topic: "home/airquality1"
 
 influxdb:
   url: "http://localhost:8086"
   token: "yIFyTTRLgdCCef9SpnUfxlgqAhwtxWr6WV8sru7BYk7ms1CaHGSvTLqutEXO92q7v2zu1PNBXv7q1MPPmjgKpA==
 "          # filled in after InfluxDB setup
   org: "iot_project"
-  bucket: "airquality"
+  bucket: "airquality1"
 
 pipeline:
   save_interval_seconds: 10
