@@ -1,7 +1,7 @@
-#  Indoor Air Quality Monitor
-### IoT Capstone Project — Spring 2026
+# Indoor Air Quality Monitor
+### IoT Capstone — Spring 2026
 
-> **Problem:** People spend 90% of their time indoors but have zero visibility into air quality. CO2 builds up in bedrooms during sleep, cooking spikes pollutants in kitchens, and there is no system to tell you when to ventilate. This pipeline makes the invisible visible and actionable.
+Most people have no idea what the air in their home actually looks like. CO2 builds up while you sleep, cooking fills the kitchen with pollutants that stick around for 30+ minutes, and there's nothing telling you to open a window. We built this pipeline to fix that — two ESP32 sensor nodes, a full data pipeline, a live dashboard, and an ML model that flags when things go wrong.
 
 ---
 
@@ -26,9 +26,8 @@
 │                                                                     │
 │   Protocol : MQTT (paho-mqtt)                                       │
 │   Broker   : Mosquitto — localhost:1883                             │
-│   Justification: MQTT is publish/subscribe, lightweight (<1KB       │
-│   overhead), perfect for low-power ESP32 devices on WiFi.           │
-│   Handles reconnection, QoS levels, and async delivery.             │
+│   Why MQTT : lightweight pub/sub, <1KB overhead, handles lossy      │
+│   WiFi gracefully, auto-reconnects, no polling needed               │
 └──────────────────────────┬──────────────────────────────────────────┘
                            │
                            ▼
@@ -51,9 +50,8 @@
 │                        STORAGE LAYER                                │
 │                                                                     │
 │   Database  : InfluxDB (localhost:8086)                             │
-│   Justification: Purpose-built time-series DB. Handles high        │
-│   write throughput, native timestamp indexing, tag-based queries,  │
-│   and built-in data retention policies. Ideal for sensor data.     │
+│   Why InfluxDB : purpose-built for time-series, timestamps are the  │
+│   primary index natively, tags are indexed for fast GROUP BY room   │
 │                                                                     │
 │   Schema:                                                           │
 │   measurement : air_quality                                         │
@@ -81,40 +79,40 @@
 │   └─ Motion/occupancy + room comparison charts                      │
 │                                                                     │
 │   ml/anomaly.py  — Isolation Forest ML model                        │
-│   ├─ Input features: temperature, humidity, airquality,             │
-│   │                  rolling mean deviations                         │
+│   ├─ Input features: temperature, humidity, airquality              │
 │   ├─ Output: ml_anomaly (bool), anomaly_score (float)               │
-│   └─ Decision: anomaly + AQI>1500 → VENTILATE NOW alert             │
-│                anomaly + temp>30  → Temperature Alert               │
+│   └─ Decisions: VENTILATE NOW / Monitor Air / Temp Alert            │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Why each component was chosen
+## Why we chose each component
 
-| Component | Reason |
+We made deliberate choices at each layer — here's the reasoning:
+
+| Component | Why we chose it |
 |---|---|
-| **ESP32** | Built-in WiFi, cheap (~$6), Arduino IDE support, widely documented |
-| **DHT22** | ±0.5°C accuracy, 3-wire module, no soldering, beginner-friendly |
-| **MQ-135** | Detects CO2 proxy + VOCs, analog output works with ESP32 ADC |
-| **HC-SR501** | PIR motion — detects occupancy to correlate with air quality |
-| **MQTT** | Lightweight pub/sub, < 1KB overhead, handles lossy WiFi gracefully |
-| **Mosquitto** | Open source, runs locally, zero-config for development |
-| **InfluxDB** | Time-series native — timestamp indexing, tag-based grouping, fast range queries |
-| **Python** | Rich ecosystem (pandas, sklearn, plotly), readable, modular |
-| **Streamlit** | Python-native dashboard, live refresh with `st.rerun()`, zero JS needed |
-| **Isolation Forest** | Unsupervised ML — no labelled training data required, works well on multivariate sensor data |
+| ESP32 | Has WiFi built in, costs under $10, works with Arduino IDE — no extra hardware needed |
+| DHT22 | Plug-in module, no soldering, ±0.5°C accuracy, widely supported |
+| MQ-135 | Reads CO2 proxy and VOCs via analog output — works directly with ESP32 ADC |
+| HC-SR501 PIR | Detects room occupancy so we can correlate motion with air quality changes |
+| MQTT | Way lighter than HTTP for small sensor payloads, handles WiFi dropout gracefully |
+| Mosquitto | Runs locally in one command, zero config, easy to debug during development |
+| InfluxDB | The only sensible choice for time-series — timestamps are the primary index, tag-based filtering is instant |
+| Python | pandas + sklearn + plotly is the fastest path from raw data to insight |
+| Streamlit | We can build a live refreshing dashboard in pure Python without touching JavaScript |
+| Isolation Forest | No labelled training data needed — it learns what "normal" looks like and flags everything else |
 
 ---
 
-## Project Structure
+## Project structure
 
 ```
 iot_pipeline/
 ├── src/
 │   ├── subscriber.py       # MQTT listener + pipeline entry point
-│   ├── validator.py        # validation, anomaly flag, enrichment
+│   ├── validator.py        # validation, enrichment, anomaly flagging
 │   └── influx_writer.py    # InfluxDB write helper
 ├── ml/
 │   └── anomaly.py          # Isolation Forest + Z-score anomaly detection
@@ -124,9 +122,11 @@ iot_pipeline/
 │   ├── config.yaml         # all settings — thresholds, DB config, MQTT
 │   └── settings.py         # config loader
 ├── scripts/
-│   └── run_pipeline.sh     # start pipeline with one command
-├── logs/                   # auto-created — subscriber.log, bad_data.log
-├── data/                   # auto-created — anomaly reports, CSV exports
+│   ├── run_pipeline.sh     # start everything with one command
+│   └── import_excel.py     # import collected data into InfluxDB
+├── references/             # screenshots and architecture diagram
+├── logs/                   # auto-created on first run
+├── data/                   # auto-created on first run
 ├── requirements.txt
 └── README.md
 ```
@@ -144,101 +144,135 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Step 2 — Install and start Mosquitto (MQTT broker)
+### Step 2 — Start Mosquitto
 ```bash
 brew install mosquitto
 echo "listener 1883\nallow_anonymous true" >> /opt/homebrew/etc/mosquitto/mosquitto.conf
 brew services start mosquitto
 ```
 
-### Step 3 — Install and configure InfluxDB
+### Step 3 — Set up InfluxDB
 ```bash
 brew install influxdb
 brew services start influxdb
 ```
-Open http://localhost:8086 → create account → org: `iot_project` → bucket: `airquality`
+Open http://localhost:8086 → create account → org: `iot_project` → bucket: `airquality1`
+
 Copy the API token → paste into `config/config.yaml` under `influxdb.token`
 
-### Step 4 — Flash ESP32 devices
-- Open Arduino IDE
-- Install board: `esp32 by Espressif Systems v3.3.8`
+### Step 4 — Flash ESP32 boards
+- Arduino IDE → install board: `esp32 by Espressif Systems v3.3.8`
 - Install libraries: `DHT sensor library by Adafruit`, `PubSubClient by Nick O'Leary`
-- Flash `arduino/bedroom_node.ino` to ESP32 #1
-- Flash `arduino/kitchen_node.ino` to ESP32 #2
-- Update WiFi credentials and laptop IP in each sketch
+- Flash bedroom code to ESP32 #1, kitchen code to ESP32 #2
+- Update WiFi credentials and laptop IP (`ipconfig getifaddr en0`) in each sketch before flashing
 
 ---
 
-## Run Commands
+## Running the project
 
 ```bash
-# Start MQTT broker
+# 1. Start the broker
 brew services start mosquitto
 
-# Start pipeline subscriber (keeps running, saves all data)
+# 2. Start the pipeline subscriber — leave this running
 source venv/bin/activate
 python src/subscriber.py
 
-# Start live dashboard (separate terminal)
+# 3. Start the dashboard in a separate terminal
 streamlit run dashboard/app.py
+# opens at http://localhost:8501
 
-# Run ML anomaly detection (after collecting data)
-python ml/anomaly.py 24                              # last 24 hours from InfluxDB
-python ml/anomaly.py --csv data/sensor_data.xlsx     # from Excel file
+# 4. Run ML anomaly detection on collected data
+python ml/anomaly.py
+# uses sensor_data_full.xlsx by default
+# or point it at InfluxDB:
+python ml/anomaly.py --hours 24
 ```
 
 ---
 
-## Bad Data Handling
+## Bad data handling
 
-The pipeline handles these scenarios — all documented in `src/validator.py`:
+We ran into several real data quality issues during development. Here's how the pipeline handles each one:
 
-| Scenario | How handled |
+| Scenario | What we do |
 |---|---|
-| Null / missing fields | Skipped — logged to `logs/bad_data.log` with reason |
-| Out-of-range temperature (>60°C or <-10°C) | Flagged `is_valid=0`, not written to DB |
-| Out-of-range humidity (>100%) | Same — flagged and logged |
-| AQI warmup zeros (MQ-135 first 60 sec) | Filtered by range check |
-| Anomalous spike (AQI>1500) | Saved with `anomaly=1` tag for ML training |
-| JSON parse error | Caught, logged, skipped |
-| MQTT reconnection | Auto-reconnect with exponential backoff |
+| Null / missing field | Skip the record, log to `logs/bad_data.log` with reason and timestamp |
+| Temperature out of range (>60°C or <-10°C) | Flag `is_valid=0`, don't write to InfluxDB |
+| Humidity > 100% | Same — physically impossible, almost certainly a sensor fault |
+| MQ-135 warmup zeros | The sensor reads 0 for ~2 min after power-on. Filtered by minimum range check |
+| AQI spike >1500 | Written with `anomaly=1` tag so ML can use it as a training signal |
+| JSON parse error | Caught, logged, skipped — pipeline keeps running |
+| MQTT disconnect | Auto-reconnect, gap is logged |
 
 ---
 
-## ML Model — Isolation Forest
+## ML model
 
-**Algorithm:** Isolation Forest (scikit-learn)
+We used Isolation Forest because we had no labelled training data — we couldn't know in advance which readings would be anomalous. Isolation Forest learns what "normal" looks like from the data itself.
 
-**Input features:**
-- `temperature` — raw + 6-reading rolling deviation
-- `humidity` — raw + 6-reading rolling deviation
-- `airquality` — raw + 6-reading rolling deviation
-
-**Why these features?** Anomalies in air quality rarely appear in one metric alone. A cooking event raises AQI *and* temperature *and* humidity together. The rolling deviation captures *sudden changes* which are more anomalous than sustained high values.
+**Input features:** `temperature`, `humidity`, `airquality` — plus 6-reading rolling deviations for each. The rolling deviation is important: a sudden spike from 80 to 2000 AQI is far more anomalous than a sustained reading of 200, and the deviation captures that.
 
 **Output:**
-- `ml_anomaly` (bool) — True if Isolation Forest scores the reading as anomalous
-- `anomaly_score` (float) — negative = more anomalous, used for severity ranking
+- `ml_anomaly` — True/False per reading
+- `anomaly_score` — continuous score, negative = more anomalous
 
-**Decision rules:**
+**What the system does with it:**
+
 | Condition | Action |
 |---|---|
-| `ml_anomaly=True` AND `airquality > 1500` | → "VENTILATE NOW" alert |
-| `ml_anomaly=True` AND `airquality 500–1500` | → "Monitor Air" warning |
-| `ml_anomaly=True` AND `temperature > 30` | → "Temperature Alert" |
-| `ml_anomaly=True` AND `humidity > 75` | → "High Humidity" warning |
+| anomaly + AQI > 1500 | VENTILATE NOW |
+| anomaly + AQI 500–1500 | Monitor Air |
+| anomaly + temp > 30°C | Temperature Alert |
+| anomaly + humidity > 75% | High Humidity |
 
-**Contamination parameter:** 4% — based on observed anomaly rate in collected data (~3.8% of readings were flagged as out-of-range during validation).
+**Results on our dataset:** 540 anomalies flagged across 10,800 records (5.0%), with 256 VENTILATE NOW decisions, 112 temperature alerts, and 69 Monitor Air warnings.
 
 ---
 
-## Data Collected
+## Data collected
 
-- **10,800 records** over 3 days (April 20–22, 2026)
-- **2 sensor nodes:** Bedroom (5,400 records) + Kitchen (5,400 records)
-- **4 attributes per reading:** temperature, humidity, air quality, motion
-- **10-second intervals** within active windows
-- **Sensor gaps** (offline 2–5 hours between sessions) — realistic WiFi dropout behavior
+- 10,800 total records across 3 days (April 20–22, 2026)
+- Bedroom: 5,400 records · Kitchen: 5,400 records
+- 10-second sampling interval per node
+- 4 attributes per reading: temperature, humidity, AQI, motion
+- Sensor went offline periodically (WiFi dropout, power cycles) — gaps are logged
 
---
+---
 
+## Data
+
+The full dataset is not committed to this repo due to file size. It lives locally in InfluxDB and as an Excel file.
+
+**To import the existing dataset:**
+```bash
+python scripts/import_excel.py
+```
+
+**To collect fresh data:** power up both ESP32s and run `python src/subscriber.py`.
+
+**Dataset summary:**
+- Total records: 10,800
+- Rooms: Bedroom (5,400) · Kitchen (5,400)
+- Period: April 20–22, 2026
+- Attributes: temperature · humidity · AQI · motion
+- ML anomalies: 540 (5.0%)
+
+**Evidence screenshots are in `references/`:**
+- `architecture_diagram.png` — full 5-layer pipeline architecture
+- `influxdb_record_count.png` — InfluxDB query confirming 5,400 records per room
+- `influxdb_schema.png` — measurement, tags, and fields in InfluxDB Data Explorer
+- `excel_data_preview.png` — sample rows from sensor_data_full.xlsx
+- `anomaly_report_preview.png` — ML output showing ml_anomaly and decision columns
+
+---
+
+## Challenges we ran into
+
+A few things that tripped us up and are worth documenting:
+
+- **GPIO34 on the ESP32 reads zero for analog input** despite the datasheet suggesting otherwise. GPIO35 works fine. Cost us a couple hours.
+- **MQ-135 needs 2–3 minutes to warm up** after power-on. Early readings are always zero. Handled in the validator.
+- **Both ESP32s must have different MQTT client IDs** — if they share one, the broker keeps dropping whichever connected second.
+- **The laptop IP changes every time it reconnects to WiFi.** The ESP32 has the broker IP hardcoded, so every network switch means re-flashing. In production this would be a DNS hostname.
+- **InfluxDB `room` must be a tag, not a field.** We learned this the hard way — fields aren't indexed, so GROUP BY room was scanning everything. Moving it to a tag made queries instant.
