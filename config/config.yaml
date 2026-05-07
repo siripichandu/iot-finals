@@ -1,7 +1,7 @@
 mqtt:
   broker: "localhost"
   port: 1883
-  topic: "home/airquality1"
+  topic: "home/airquality"
 
 influxdb:
   url: "http://localhost:8086"
