@@ -110,7 +110,10 @@ We made deliberate choices at each layer — here's the reasoning:
 
 ```
 iot_pipeline/
-├── src/
+├── arduino/
+|   |—— bedroom_node.ino    # ino code for bedroom esp setup
+|   |—— kitchen_node.ino    # ino code for kitchen esp setup
+|—— src/
 │   ├── subscriber.py       # MQTT listener + pipeline entry point
 │   ├── validator.py        # validation, enrichment, anomaly flagging
 │   └── influx_writer.py    # InfluxDB write helper
@@ -137,8 +140,8 @@ iot_pipeline/
 
 ### Step 1 — Clone and install
 ```bash
-git clone https://github.com/YOUR_USERNAME/iot-air-quality.git
-cd iot-air-quality
+git clone https://github.com/siripichandu/iot-finals.git
+cd iot-finals
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -264,6 +267,9 @@ python scripts/import_excel.py
 - `influxdb_schema.png` — measurement, tags, and fields in InfluxDB Data Explorer
 - `excel_data_preview.png` — sample rows from sensor_data_full.xlsx
 - `anomaly_report_preview.png` — ML output showing ml_anomaly and decision columns
+- `Indoor Air Quality Monitor Homepage.pdf` — full dashboard homepage view with KPI cards and insight bar
+- `Indoor Air Quality Monitor bed room.pdf` — bedroom filter view showing temperature, humidity and AQI trends
+- `Indoor Air Quality Monitor kitchen.pdf` — kitchen filter view showing room-specific air quality patterns
 
 ---
 
